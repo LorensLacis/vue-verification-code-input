@@ -6,7 +6,6 @@
     }"
     v-bind:style="{ width: `${fields * fieldWidth}px` }"
   >
-    <p class="title" v-if="title">{{title}}</p>
     <div class="react-code-input">
       <template v-for="(v, index) in values">
         <input
@@ -26,7 +25,7 @@
           v-on:keydown="onKeyDown"
           :disabled="disabled"
           :required="required"
-          maxlength="1"
+          autocomplete="off"
         />
       </template>
     </div>
@@ -91,7 +90,6 @@ export default {
       type: Boolean,
       default: false
     },
-    title: String,
     change: Function,
     complete: Function,
     loading: {
@@ -233,36 +231,13 @@ export default {
 }
 
 .react-code-input > input {
-  border: solid 1px #a8adb7;
-  border-right: none;
-  font-family: "Lato";
-  font-size: 20px;
-  color: #525461;
   text-align: center;
   box-sizing: border-box;
-  border-radius: 0;
   -webkit-appearance: initial;
-}
-
-.react-code-input > input:last-child {
-  border-right: solid 1px #a8adb7;
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
-}
-
-.react-code-input > input:first-child {
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
 }
 
 .react-code-input > input:focus {
   outline: none;
-  border: 1px solid #006fff;
-  caret-color: #006fff;
-}
-
-.react-code-input > input:focus + input {
-  border-left: none;
 }
 
 .loading {
@@ -283,12 +258,6 @@ export default {
   opacity: 0.5;
   filter: blur(0.5px);
   transition: opacity 0.3s;
-}
-
-.title {
-  margin: 0;
-  height: 20px;
-  padding-bottom: 10px;
 }
 
 .spin {
