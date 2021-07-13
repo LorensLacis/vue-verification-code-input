@@ -1,48 +1,53 @@
 <template>
   <div
-    v-bind:class="{
+      v-bind:class="{
       'react-code-input-container': true,
       [className]: !!className
     }"
-    v-bind:style="{ width: `${fields * fieldWidth}px` }"
+      v-bind:style="{ width: `${fields * fieldWidth}px` }"
   >
     <div class="react-code-input">
       <template v-for="(v, index) in values">
         <input
-          :type="type === 'number' ? 'tel' : type"
-          :pattern="type === 'number' ? '[0-9]' : null"
-          :autoFocus="autoFocus && !loading && index === autoFocusIndex"
-          :style="{
+            :type="type === 'number' ? 'tel' : type"
+            :pattern="type === 'number' ? '[0-9]' : null"
+            :autoFocus="autoFocus && !loading && index === autoFocusIndex"
+            :style="{
             width: `${fieldWidth}px`,
             height: `${fieldHeight}px`
           }"
-          :key="`${id}-${index}`"
-          :data-id="index"
-          :value="v"
-          :ref="iRefs[index]"
-          v-on:input="onValueChange"
-          v-on:focus="onFocus"
-          v-on:keydown="onKeyDown"
-          :disabled="disabled"
-          :required="required"
-          autocomplete="off"
+            :key="`${id}-${index}`"
+            :data-id="index"
+            :value="v"
+            :ref="iRefs[index]"
+            v-on:input="onValueChange"
+            v-on:focus="onFocus"
+            v-on:keydown="onKeyDown"
+            v-on:keyup="onKeyUp"
+            :disabled="disabled"
+            :required="required"
+            @click="onClick"
         />
       </template>
     </div>
-    <div v-if="loading" class="loading" :style="{lineHeight: `${fieldHeight}px`}">
+    <div
+        v-if="loading"
+        class="loading"
+        :style="{ lineHeight: `${fieldHeight}px` }"
+    >
       <div class="blur" />
       <svg
-        class="spin"
-        viewBox="0 0 1024 1024"
-        data-icon="loading"
-        width="1em"
-        height="1em"
-        fill="currentColor"
-        aria-hidden="true"
+          class="spin"
+          viewBox="0 0 1024 1024"
+          data-icon="loading"
+          width="1em"
+          height="1em"
+          fill="currentColor"
+          aria-hidden="true"
       >
         <path
-          fill="#006fff"
-          d="M988 548c-19.9 0-36-16.1-36-36 0-59.4-11.6-117-34.6-171.3a440.45 440.45 0 0 0-94.3-139.9 437.71 437.71 0 0 0-139.9-94.3C629 83.6 571.4 72 512 72c-19.9 0-36-16.1-36-36s16.1-36 36-36c69.1 0 136.2 13.5 199.3 40.3C772.3 66 827 103 874 150c47 47 83.9 101.8 109.7 162.7 26.7 63.1 40.2 130.2 40.2 199.3.1 19.9-16 36-35.9 36z"
+            fill="#006fff"
+            d="M988 548c-19.9 0-36-16.1-36-36 0-59.4-11.6-117-34.6-171.3a440.45 440.45 0 0 0-94.3-139.9 437.71 437.71 0 0 0-139.9-94.3C629 83.6 571.4 72 512 72c-19.9 0-36-16.1-36-36s16.1-36 36-36c69.1 0 136.2 13.5 199.3 40.3C772.3 66 827 103 874 150c47 47 83.9 101.8 109.7 162.7 26.7 63.1 40.2 130.2 40.2 199.3.1 19.9-16 36-35.9 36z"
         />
       </svg>
     </div>
@@ -55,9 +60,11 @@ const KEY_CODE = {
   left: 37,
   up: 38,
   right: 39,
-  down: 40
+  down: 40,
+  ctrl: 17,
+  cmd: 91,
+  v: 86
 };
-
 export default {
   name: "CodeInput",
   props: {
@@ -94,55 +101,95 @@ export default {
     complete: Function,
     loading: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
+    defaultValues: {
+      type: Array,
+      default: () => {
+        return [];
+      },
+    },
+    clear: Boolean,
   },
   data() {
-    const { fields, values } = this;
+    let { fields, defaultValues } = this;
     let vals;
     let autoFocusIndex = 0;
-    if (values && values.length) {
+    if (defaultValues && defaultValues.length) {
       vals = [];
       for (let i = 0; i < fields; i++) {
-        vals.push(values[i] || "");
+        vals.push(defaultValues[i] || "");
       }
-      autoFocusIndex = values.length >= fields ? 0 : values.length;
+      autoFocusIndex =
+          defaultValues.length >= fields ? 0 : defaultValues.length;
     } else {
       vals = Array(fields).fill("");
     }
-
     this.iRefs = [];
     for (let i = 0; i < fields; i++) {
       this.iRefs.push(`input_${i}`);
     }
-
     this.id = +new Date();
-    return { values: vals, autoFocusIndex };
+    return { values: vals, autoFocusIndex, ctrlDown: false, pasteCode: false };
   },
   mounted() {},
   methods: {
     onFocus(e) {
       e.target.select(e);
     },
-    onValueChange(e) {
-      const index = parseInt(e.target.dataset.id);
+    pasteAndSetCode(value) {
+      let characters = value.slice();
+      if (this.type == "number") {
+        let numbers = [];
+        for (let i = 0; i < value.length; i++) {
+          if (characters[i].replace(/[^\d]/gi, "") != "") {
+            numbers.push(characters[i]);
+          }
+        }
+        characters = numbers;
+      }
+      if (characters.filter(character => character != "").length == 0) {
+        return
+      }
+      this.emptyValues();
+      this.values = this.values.map((value, index) => {
+        value =
+            typeof characters[index] != "undefined" ? characters[index] : "";
+        this.changeValue(value, index, value != "");
+        return value;
+      });
+    },
+    changeValue(targetValue, index, valid, e = false) {
+      index = parseInt(index);
+      let inputValue = targetValue;
+      let arrayValue = inputValue.slice();
+      targetValue = typeof arrayValue[0] != "undefined" ? arrayValue[0] : "";
+      if (e) {
+        e.target.value = targetValue;
+      }
+      if (this.pasteCode) {
+        this.pasteCode = false;
+        if (index == 0) {
+          this.pasteAndSetCode(inputValue);
+        }
+      }
       const { type, fields } = this;
       if (type === "number") {
-        e.target.value = e.target.value.replace(/[^\d]/gi, "");
+        targetValue = targetValue.replace(/[^\d]/gi, "");
+        if (e) {
+          e.target.value = targetValue
+        }
       }
       // this.handleKeys[index] = false;
-      if (
-        e.target.value === "" ||
-        (type === "number" && !e.target.validity.valid)
-      ) {
+      if (targetValue === "" || (type === "number" && !valid)) {
         return;
       }
       let next;
-      const value = e.target.value;
+      const value = targetValue;
       let { values } = this;
       values = Object.assign([], values);
-      if (value.length > 1) {
-        let nextIndex = value.length + index - 1;
+      if (value.length > 1 || (value.length > 0 && e)) {
+        let nextIndex = value.length + index - 1 + (e ? 1 : 0);
         if (nextIndex >= fields) {
           nextIndex = fields - 1;
         }
@@ -160,14 +207,31 @@ export default {
         values[index] = value;
         this.values = values;
       }
-
       if (next) {
-        const element = this.$refs[next][0];
-        element.focus();
-        element.select();
+        this.selectAndFocusInput(next);
       }
-
       this.triggerChange(values);
+    },
+    selectAndFocusInput(index) {
+      const element = this.$refs[index][0];
+      element.focus();
+      element.select();
+    },
+    onValueChange(e) {
+      this.changeValue(
+          e.target.value,
+          e.target.dataset.id,
+          e.target.validity.valid,
+          e
+      );
+    },
+    onClick(e) {
+      this.selectAndFocusInput(this.iRefs[e.target.dataset.id])
+    },
+    onKeyUp(e) {
+      if (e.keyCode == KEY_CODE.ctrl || e.keyCode == KEY_CODE.cmd) {
+        this.ctrlDown = false;
+      }
     },
     onKeyDown(e) {
       const index = parseInt(e.target.dataset.id);
@@ -175,6 +239,9 @@ export default {
       const nextIndex = index + 1;
       const prev = this.iRefs[prevIndex];
       const next = this.iRefs[nextIndex];
+      if (e.keyCode == KEY_CODE.ctrl || e.keyCode == KEY_CODE.cmd) {
+        this.ctrlDown = true;
+      }
       switch (e.keyCode) {
         case KEY_CODE.backspace: {
           e.preventDefault();
@@ -207,6 +274,9 @@ export default {
         case KEY_CODE.down:
           e.preventDefault();
           break;
+        case KEY_CODE.v:
+          this.pasteCode = true;
+          break;
         default:
           // this.handleKeys[index] = true;
           break;
@@ -219,8 +289,20 @@ export default {
       if (val.length >= fields) {
         this.$emit("complete", val);
       }
-    }
-  }
+    },
+    emptyValues() {
+      this.values = Array(this.fields).fill("");
+    },
+    clearValues() {
+      this.emptyValues();
+      this.triggerChange();
+    },
+  },
+  watch: {
+    clear() {
+      this.clearValues();
+    },
+  },
 };
 </script>
 
@@ -229,7 +311,6 @@ export default {
 .react-code-input-container {
   position: relative;
 }
-
 .react-code-input > input {
   text-align: center;
   box-sizing: border-box;
@@ -247,7 +328,6 @@ export default {
   bottom: 0;
   text-align: center;
 }
-
 .blur {
   position: absolute;
   top: 0;
@@ -264,7 +344,6 @@ export default {
   display: inline-block;
   animation: loadingCircle 1s infinite linear;
 }
-
 @keyframes loadingCircle {
   100% {
     transform: rotate(360deg);
