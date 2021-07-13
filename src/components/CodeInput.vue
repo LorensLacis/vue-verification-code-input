@@ -4,7 +4,6 @@
       'react-code-input-container': true,
       [className]: !!className
     }"
-      v-bind:style="{ width: `${fields * fieldWidth}px` }"
   >
     <div class="react-code-input">
       <template v-for="(v, index) in values">
@@ -12,10 +11,6 @@
             :type="type === 'number' ? 'tel' : type"
             :pattern="type === 'number' ? '[0-9]' : null"
             :autoFocus="autoFocus && !loading && index === autoFocusIndex"
-            :style="{
-            width: `${fieldWidth}px`,
-            height: `${fieldHeight}px`
-          }"
             :key="`${id}-${index}`"
             :data-id="index"
             :value="v"
@@ -33,7 +28,6 @@
     <div
         v-if="loading"
         class="loading"
-        :style="{ lineHeight: `${fieldHeight}px` }"
     >
       <div class="blur" />
       <svg
@@ -46,7 +40,7 @@
           aria-hidden="true"
       >
         <path
-            fill="#006fff"
+            fill="#59c66e"
             d="M988 548c-19.9 0-36-16.1-36-36 0-59.4-11.6-117-34.6-171.3a440.45 440.45 0 0 0-94.3-139.9 437.71 437.71 0 0 0-139.9-94.3C629 83.6 571.4 72 512 72c-19.9 0-36-16.1-36-36s16.1-36 36-36c69.1 0 136.2 13.5 199.3 40.3C772.3 66 827 103 874 150c47 47 83.9 101.8 109.7 162.7 26.7 63.1 40.2 130.2 40.2 199.3.1 19.9-16 36-35.9 36z"
         />
       </svg>
@@ -76,14 +70,6 @@ export default {
     fields: {
       type: Number,
       default: 6
-    },
-    fieldWidth: {
-      type: Number,
-      default: 58
-    },
-    fieldHeight: {
-      type: Number,
-      default: 54
     },
     autoFocus: {
       type: Boolean,
